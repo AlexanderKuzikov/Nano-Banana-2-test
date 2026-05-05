@@ -1,0 +1,23 @@
+{
+  "mode": "generate",
+  "model": "google/gemini-2.5-flash-image",
+  "prompt": "Сгенерируй фотореалистичное изображения строительства с использованием винтовых свай, без текста, формат 1024x1024",
+  "params": {
+    "size": "1024x1024",
+    "n": 1,
+    "quality": "low"
+  },
+  "responseSource": "b64_json",
+  "usage": {
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "input_tokens_details": {
+      "image_tokens": 0,
+      "text_tokens": 0
+    },
+    "output_tokens": 0
+  },
+  "startedAt": "2026-05-05T12:04:08.524Z",
+  "savedAt": "2026-05-05T12:04:22.304Z",
+  "outputFile": "google-gemini-2.5-flash-image_gen_20260505-170422_1.png"
+}

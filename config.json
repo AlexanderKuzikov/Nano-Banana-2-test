@@ -1,7 +1,7 @@
 {
-  "mode": "generate",
-  "model": "google/gemini-3.1-flash-image-preview",
-  "promptFile": "prompts/generate.txt",
+  "mode": "retouch",
+  "model": "google/gemini-2.5-flash-image",
+  "promptFile": "prompts/retouch.txt",
   "inputDir": "input",
   "outputDir": "output",
   "baseURL": "https://api.vsellm.ru/v1",

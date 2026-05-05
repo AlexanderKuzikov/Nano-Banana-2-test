@@ -1,0 +1,19 @@
+{
+  "startedAt": "2026-05-05T12:03:20.009Z",
+  "finishedAt": "2026-05-05T12:03:20.220Z",
+  "durationMs": 211,
+  "mode": "generate",
+  "model": "gemini-3.1-flash-image-preview",
+  "baseURL": "https://api.vsellm.ru/v1",
+  "totalRequests": 1,
+  "succeeded": 0,
+  "failed": 1,
+  "requests": [
+    {
+      "durationMs": 207,
+      "responseSource": "error",
+      "error": "400 litellm.BadRequestError: LLM Provider NOT provided. Pass in the LLM provider you are trying to call. You passed model=gemini-3.1-flash-image-preview\n Pass model as E.g. For 'Huggingface' inference endpoints pass in `completion(model='huggingface/starcoder',..)` Learn more: https://docs.litellm.ai/docs/providers. Received Model Group=gemini-3.1-flash-image-preview\nAvailable Model Group Fallbacks=None"
+    }
+  ],
+  "totalUsage": {}
+}

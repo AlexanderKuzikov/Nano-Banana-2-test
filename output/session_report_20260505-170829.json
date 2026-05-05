@@ -1,0 +1,33 @@
+{
+  "startedAt": "2026-05-05T12:08:18.438Z",
+  "finishedAt": "2026-05-05T12:08:29.266Z",
+  "durationMs": 10828,
+  "mode": "retouch",
+  "model": "google/gemini-2.5-flash-image",
+  "baseURL": "https://api.vsellm.ru/v1",
+  "totalRequests": 1,
+  "succeeded": 1,
+  "failed": 0,
+  "requests": [
+    {
+      "inputFile": "1-1-1024x768.jpg",
+      "outputFile": "google-gemini-2.5-flash-image_retouch_1-1-1024x768_20260505-170818.png",
+      "durationMs": 10822,
+      "responseSource": "b64_json",
+      "usage": {
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "input_tokens_details": {
+          "image_tokens": 0,
+          "text_tokens": 0
+        },
+        "output_tokens": 0
+      }
+    }
+  ],
+  "totalUsage": {
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0
+  }
+}

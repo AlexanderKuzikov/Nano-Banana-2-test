@@ -1,0 +1,23 @@
+{
+  "mode": "retouch",
+  "model": "google/gemini-2.5-flash-image",
+  "prompt": "Обработай изображение чтобы оно стало визуально приятнее. Убери грязь, ржавчину и потертости на технике. Сделай красиво",
+  "params": {
+    "size": "1024x1024",
+    "n": 1
+  },
+  "inputFile": "1-1-1024x768.jpg",
+  "responseSource": "b64_json",
+  "usage": {
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "input_tokens_details": {
+      "image_tokens": 0,
+      "text_tokens": 0
+    },
+    "output_tokens": 0
+  },
+  "startedAt": "2026-05-05T12:08:18.443Z",
+  "savedAt": "2026-05-05T12:08:29.265Z",
+  "outputFile": "google-gemini-2.5-flash-image_retouch_1-1-1024x768_20260505-170818.png"
+}
