@@ -60,7 +60,7 @@ export async function runRetouch(config: AppConfig, client: OpenAI, session: Ses
       continue;
     }
 
-    const usage = (response as Record<string, unknown>).usage as Record<string, unknown> ?? null;
+    const usage = ((response as unknown) as Record<string, unknown>).usage as Record<string, unknown> ?? null;
 
     if (!response.data || response.data.length === 0) {
       console.warn(`[retouch] Empty response for ${path.basename(imagePath)}`);

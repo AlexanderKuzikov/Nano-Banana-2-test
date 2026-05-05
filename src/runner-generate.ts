@@ -41,7 +41,7 @@ export async function runGenerate(config: AppConfig, client: OpenAI, session: Se
 
   const modelTag = sanitizeModelName(model);
   const ts = timestamp();
-  const usage = (response as Record<string, unknown>).usage as Record<string, unknown> ?? null;
+  const usage = ((response as unknown) as Record<string, unknown>).usage as Record<string, unknown> ?? null;
 
   if (!response.data || response.data.length === 0) {
     console.warn('[generate] Response contained no images. Raw response:');
