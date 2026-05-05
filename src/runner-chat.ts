@@ -23,14 +23,21 @@ function extractFromString(content: string): { type: 'b64' | 'url' | 'none'; dat
 }
 
 // Try to extract image from raw response object.
-// Handles multimodal content parts array, top-level images[], and data[].
 function extractFromRaw(raw: unknown): { type: 'b64' | 'url' | 'none'; data: string } {
   const r = raw as Record<string, unknown>;
 
-  // content as array of parts (multimodal chat response)
   const choices = r?.choices as Array<Record<string, unknown>> | undefined;
   if (Array.isArray(choices) && choices.length > 0) {
     const message = choices[0]?.message as Record<string, unknown> | undefined;
+
+    // message.images[] — RouterAI format for image generation
+    const msgImages = message?.images as Array<Record<string, unknown>> | undefined;
+    if (Array.isArray(msgImages) && msgImages.length > 0) {
+      const imgUrl = (msgImages[0]?.image_url as Record<string, unknown>)?.url as string | undefined;
+      if (imgUrl) return extractFromString(imgUrl);
+    }
+
+    // content as array of parts
     const contentParts = message?.content as Array<Record<string, unknown>> | undefined;
     if (Array.isArray(contentParts)) {
       for (const part of contentParts) {
@@ -55,7 +62,7 @@ function extractFromRaw(raw: unknown): { type: 'b64' | 'url' | 'none'; data: str
     if (imgUrl) return extractFromString(imgUrl);
   }
 
-  // data[] (images API style via chat endpoint)
+  // data[] (images API style)
   const data = r?.data as Array<Record<string, unknown>> | undefined;
   if (Array.isArray(data) && data.length > 0) {
     const b64 = data[0]?.b64_json as string | undefined;
@@ -134,9 +141,10 @@ export async function runChat(config: AppConfig, client: OpenAI, session: Sessio
 
     let response: OpenAI.Chat.ChatCompletion;
     try {
-      response = await client.chat.completions.create({
+      response = await (client.chat.completions.create as Function)({
         model: config.model,
         messages: job.messages,
+        modalities: ['image', 'text'],
       });
     } catch (err: unknown) {
       const errorData = err instanceof Error ? { message: err.message, stack: err.stack } : err;
@@ -161,7 +169,7 @@ export async function runChat(config: AppConfig, client: OpenAI, session: Sessio
       extracted = extractFromString(rawContent);
     }
 
-    // Fallback: raw response (content parts array, images[], data[])
+    // Fallback: raw response fields
     if (extracted.type === 'none') {
       extracted = extractFromRaw(response);
     }
