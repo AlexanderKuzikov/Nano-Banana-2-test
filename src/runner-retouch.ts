@@ -10,7 +10,9 @@ export async function runRetouch(config: AppConfig, client: OpenAI, session: Ses
   const prompt = loadPrompt(config);
   const inputDir = path.join(process.cwd(), config.inputDir);
   const outputDir = path.join(process.cwd(), config.outputDir);
+  const logsDir = path.join(process.cwd(), config.logsDir);
   ensureDir(outputDir);
+  ensureDir(logsDir);
 
   const imageFiles = getImageFiles(inputDir);
   if (imageFiles.length === 0) {
@@ -53,7 +55,7 @@ export async function runRetouch(config: AppConfig, client: OpenAI, session: Ses
       response = await client.images.edit(params);
     } catch (err: unknown) {
       const errorData = err instanceof Error ? { message: err.message, stack: err.stack } : err;
-      const errPath = path.join(outputDir, `error_retouch_${originalName}_${ts}.json`);
+      const errPath = path.join(logsDir, `error_retouch_${originalName}_${ts}.json`);
       fs.writeFileSync(errPath, JSON.stringify({ error: errorData, inputFile: imagePath, prompt }, null, 2));
       console.error(`[retouch] Failed for ${path.basename(imagePath)}. Error saved to:`, errPath);
       session.add({ inputFile: path.basename(imagePath), durationMs: Date.now() - reqStart, responseSource: 'error', error: (err as Error).message });
@@ -63,10 +65,9 @@ export async function runRetouch(config: AppConfig, client: OpenAI, session: Ses
     const usage = ((response as unknown) as Record<string, unknown>).usage as Record<string, unknown> ?? null;
 
     if (!response.data || response.data.length === 0) {
-      console.warn(`[retouch] Empty response for ${path.basename(imagePath)}`);
-      const rawPath = path.join(outputDir, `raw_response_retouch_${originalName}_${ts}.json`);
+      const rawPath = path.join(logsDir, `raw_response_retouch_${originalName}_${ts}.json`);
       fs.writeFileSync(rawPath, JSON.stringify(response, null, 2));
-      console.warn('Raw response saved to:', rawPath);
+      console.warn(`[retouch] Empty response for ${path.basename(imagePath)}. Raw saved to:`, rawPath);
       session.add({ inputFile: path.basename(imagePath), durationMs: Date.now() - reqStart, responseSource: 'none', usage });
       continue;
     }
@@ -77,10 +78,9 @@ export async function runRetouch(config: AppConfig, client: OpenAI, session: Ses
       const source = await saveImageData(img, filePath);
 
       if (source === 'none') {
-        console.warn(`[retouch] No image data in response item ${i + 1}:`, JSON.stringify(img));
-        const rawPath = path.join(outputDir, `raw_img_retouch_${originalName}_${ts}_${i + 1}.json`);
+        const rawPath = path.join(logsDir, `raw_img_retouch_${originalName}_${ts}_${i + 1}.json`);
         fs.writeFileSync(rawPath, JSON.stringify(img, null, 2));
-        console.warn('Raw item saved to:', rawPath);
+        console.warn(`[retouch] No image data in item ${i + 1}. Raw saved to:`, rawPath);
         session.add({ inputFile: path.basename(imagePath), outputFile: path.basename(filePath), durationMs: Date.now() - reqStart, responseSource: 'none', usage });
         continue;
       }
