@@ -35,3 +35,4 @@ input/*
 !input/.gitkeep
 output/*
 !output/.gitkeep
+!output/*.json
