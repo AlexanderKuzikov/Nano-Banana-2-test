@@ -5,25 +5,46 @@ import { AppConfig, loadPrompt, ensureDir } from './config';
 import { sanitizeModelName, timestamp, saveMetadata, getImageFiles } from './utils';
 import { Session } from './session';
 
-// Extract image data from chat response content.
-// Providers may return: base64 data URL, plain base64, markdown image, or raw URL.
-function extractImage(content: string): { type: 'b64' | 'url' | 'none'; data: string } {
-  // data:image/...;base64,<data>
+// Extract image data from chat response content string.
+function extractFromString(content: string): { type: 'b64' | 'url' | 'none'; data: string } {
   const dataUrl = content.match(/data:image\/[^;]+;base64,([A-Za-z0-9+/=]+)/);
   if (dataUrl) return { type: 'b64', data: dataUrl[1] };
 
-  // markdown ![...](url) or plain https URL ending with image ext
   const mdImg = content.match(/!\[.*?\]\((https?:\/\/[^)]+)\)/);
   if (mdImg) return { type: 'url', data: mdImg[1] };
 
   const plainUrl = content.match(/(https?:\/\/\S+\.(?:png|jpg|jpeg|webp))/i);
   if (plainUrl) return { type: 'url', data: plainUrl[1] };
 
-  // bare base64 block (no prefix) — heuristic: long alphanum string
   const bare = content.trim();
   if (/^[A-Za-z0-9+/]{100,}={0,2}$/.test(bare)) return { type: 'b64', data: bare };
 
   return { type: 'none', data: content };
+}
+
+// Try to extract image from raw response object.
+// Handles Google Gemini custom field: response.images[0].image_url.url (data URI or URL)
+// Also handles response.data[0].b64_json and response.data[0].url (some proxies).
+function extractFromRaw(raw: unknown): { type: 'b64' | 'url' | 'none'; data: string } {
+  const r = raw as Record<string, unknown>;
+
+  // google-gemini-v1: { images: [{ image_url: { url: 'data:image/jpeg;base64,...' } }] }
+  const images = r?.images as Array<Record<string, unknown>> | undefined;
+  if (Array.isArray(images) && images.length > 0) {
+    const imgUrl = (images[0]?.image_url as Record<string, unknown>)?.url as string | undefined;
+    if (imgUrl) return extractFromString(imgUrl);
+  }
+
+  // Some proxies expose data[] like images API
+  const data = r?.data as Array<Record<string, unknown>> | undefined;
+  if (Array.isArray(data) && data.length > 0) {
+    const b64 = data[0]?.b64_json as string | undefined;
+    if (b64) return { type: 'b64', data: b64 };
+    const url = data[0]?.url as string | undefined;
+    if (url) return { type: 'url', data: url };
+  }
+
+  return { type: 'none', data: '' };
 }
 
 async function downloadUrl(url: string, dest: string): Promise<void> {
@@ -47,7 +68,6 @@ export async function runChat(config: AppConfig, client: OpenAI, session: Sessio
   const modelTag = sanitizeModelName(config.model);
   const isRetouch = config.mode === 'retouch';
 
-  // Build list of jobs: retouch = one per input file, generate = single job
   const jobs: Array<{ inputFile?: string; messages: OpenAI.Chat.ChatCompletionMessageParam[] }> = [];
 
   if (isRetouch) {
@@ -77,9 +97,7 @@ export async function runChat(config: AppConfig, client: OpenAI, session: Sessio
       });
     }
   } else {
-    jobs.push({
-      messages: [{ role: 'user', content: prompt }],
-    });
+    jobs.push({ messages: [{ role: 'user', content: prompt }] });
   }
 
   console.log(`[chat/${config.mode}] model: ${config.model}`);
@@ -115,32 +133,24 @@ export async function runChat(config: AppConfig, client: OpenAI, session: Sessio
     }
 
     const usage = response.usage as unknown as Record<string, unknown> ?? null;
-    const content = response.choices?.[0]?.message?.content ?? '';
 
-    if (!content) {
-      console.warn(`[chat] Empty content in response`);
-      const rawPath = path.join(outputDir, `raw_response_${config.mode}_${inputName}_${ts}.json`);
-      fs.writeFileSync(rawPath, JSON.stringify(response, null, 2));
-      console.warn('Raw response saved to:', rawPath);
-      session.add({
-        inputFile: job.inputFile ? path.basename(job.inputFile) : undefined,
-        durationMs: Date.now() - reqStart,
-        responseSource: 'none',
-        usage,
-      });
-      continue;
+    // Primary: standard content field
+    let extracted = { type: 'none' as 'b64' | 'url' | 'none', data: '' };
+    const content = response.choices?.[0]?.message?.content;
+    if (content) {
+      extracted = extractFromString(content);
     }
 
-    const extracted = extractImage(content);
+    // Fallback: provider-specific raw fields (e.g. google-gemini-v1)
+    if (extracted.type === 'none') {
+      extracted = extractFromRaw(response);
+    }
 
     if (extracted.type === 'none') {
-      // No image found — save raw content for inspection
-      console.warn(`[chat] No image data detected in response. Saving raw content.`);
-      const rawPath = path.join(outputDir, `raw_content_${config.mode}_${inputName}_${ts}.txt`);
-      fs.writeFileSync(rawPath, content, 'utf-8');
-      const rawJsonPath = path.join(outputDir, `raw_response_${config.mode}_${inputName}_${ts}.json`);
-      fs.writeFileSync(rawJsonPath, JSON.stringify(response, null, 2));
-      console.warn('Raw content saved to:', rawPath);
+      console.warn(`[chat] No image data found in response. Saving raw response for inspection.`);
+      const rawPath = path.join(outputDir, `raw_response_${config.mode}_${inputName}_${ts}.json`);
+      fs.writeFileSync(rawPath, JSON.stringify(response, null, 2));
+      console.warn('Saved to:', rawPath);
       session.add({
         inputFile: job.inputFile ? path.basename(job.inputFile) : undefined,
         durationMs: Date.now() - reqStart,
