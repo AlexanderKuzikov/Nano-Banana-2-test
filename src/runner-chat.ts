@@ -23,19 +23,39 @@ function extractFromString(content: string): { type: 'b64' | 'url' | 'none'; dat
 }
 
 // Try to extract image from raw response object.
-// Handles Google Gemini custom field: response.images[0].image_url.url (data URI or URL)
-// Also handles response.data[0].b64_json and response.data[0].url (some proxies).
+// Handles multimodal content parts array, top-level images[], and data[].
 function extractFromRaw(raw: unknown): { type: 'b64' | 'url' | 'none'; data: string } {
   const r = raw as Record<string, unknown>;
 
-  // google-gemini-v1: { images: [{ image_url: { url: 'data:image/jpeg;base64,...' } }] }
+  // content as array of parts (multimodal chat response)
+  const choices = r?.choices as Array<Record<string, unknown>> | undefined;
+  if (Array.isArray(choices) && choices.length > 0) {
+    const message = choices[0]?.message as Record<string, unknown> | undefined;
+    const contentParts = message?.content as Array<Record<string, unknown>> | undefined;
+    if (Array.isArray(contentParts)) {
+      for (const part of contentParts) {
+        if (part?.type === 'image_url') {
+          const url = (part?.image_url as Record<string, unknown>)?.url as string | undefined;
+          if (url) return extractFromString(url);
+        }
+        if (part?.type === 'image') {
+          const src = part?.source as Record<string, unknown> | undefined;
+          if (src?.type === 'base64' && typeof src?.data === 'string') {
+            return { type: 'b64', data: src.data };
+          }
+        }
+      }
+    }
+  }
+
+  // top-level images[]
   const images = r?.images as Array<Record<string, unknown>> | undefined;
   if (Array.isArray(images) && images.length > 0) {
     const imgUrl = (images[0]?.image_url as Record<string, unknown>)?.url as string | undefined;
     if (imgUrl) return extractFromString(imgUrl);
   }
 
-  // Some proxies expose data[] like images API
+  // data[] (images API style via chat endpoint)
   const data = r?.data as Array<Record<string, unknown>> | undefined;
   if (Array.isArray(data) && data.length > 0) {
     const b64 = data[0]?.b64_json as string | undefined;
@@ -134,14 +154,14 @@ export async function runChat(config: AppConfig, client: OpenAI, session: Sessio
 
     const usage = response.usage as unknown as Record<string, unknown> ?? null;
 
-    // Primary: standard content field
+    // Primary: standard content field (string)
     let extracted = { type: 'none' as 'b64' | 'url' | 'none', data: '' };
-    const content = response.choices?.[0]?.message?.content;
-    if (content) {
-      extracted = extractFromString(content);
+    const rawContent = (response.choices?.[0]?.message as unknown as Record<string, unknown>)?.content;
+    if (typeof rawContent === 'string' && rawContent) {
+      extracted = extractFromString(rawContent);
     }
 
-    // Fallback: provider-specific raw fields (e.g. google-gemini-v1)
+    // Fallback: raw response (content parts array, images[], data[])
     if (extracted.type === 'none') {
       extracted = extractFromRaw(response);
     }
