@@ -4,8 +4,9 @@ import OpenAI from 'openai';
 import { AppConfig, loadPrompt, ensureDir } from './config';
 import { sanitizeModelName, timestamp, saveImageData, saveMetadata, getImageFiles } from './utils';
 import { toFile } from 'openai';
+import { Session } from './session';
 
-export async function runRetouch(config: AppConfig, client: OpenAI): Promise<void> {
+export async function runRetouch(config: AppConfig, client: OpenAI, session: Session): Promise<void> {
   const prompt = loadPrompt(config);
   const inputDir = path.join(process.cwd(), config.inputDir);
   const outputDir = path.join(process.cwd(), config.outputDir);
@@ -44,6 +45,7 @@ export async function runRetouch(config: AppConfig, client: OpenAI): Promise<voi
       response_format: 'b64_json',
     };
 
+    const reqStart = Date.now();
     const startedAt = new Date().toISOString();
     let response: OpenAI.Images.ImagesResponse;
 
@@ -54,14 +56,18 @@ export async function runRetouch(config: AppConfig, client: OpenAI): Promise<voi
       const errPath = path.join(outputDir, `error_retouch_${originalName}_${ts}.json`);
       fs.writeFileSync(errPath, JSON.stringify({ error: errorData, inputFile: imagePath, prompt }, null, 2));
       console.error(`[retouch] Failed for ${path.basename(imagePath)}. Error saved to:`, errPath);
+      session.add({ inputFile: path.basename(imagePath), durationMs: Date.now() - reqStart, responseSource: 'error', error: (err as Error).message });
       continue;
     }
+
+    const usage = (response as Record<string, unknown>).usage as Record<string, unknown> ?? null;
 
     if (!response.data || response.data.length === 0) {
       console.warn(`[retouch] Empty response for ${path.basename(imagePath)}`);
       const rawPath = path.join(outputDir, `raw_response_retouch_${originalName}_${ts}.json`);
       fs.writeFileSync(rawPath, JSON.stringify(response, null, 2));
       console.warn('Raw response saved to:', rawPath);
+      session.add({ inputFile: path.basename(imagePath), durationMs: Date.now() - reqStart, responseSource: 'none', usage });
       continue;
     }
 
@@ -75,10 +81,12 @@ export async function runRetouch(config: AppConfig, client: OpenAI): Promise<voi
         const rawPath = path.join(outputDir, `raw_img_retouch_${originalName}_${ts}_${i + 1}.json`);
         fs.writeFileSync(rawPath, JSON.stringify(img, null, 2));
         console.warn('Raw item saved to:', rawPath);
+        session.add({ inputFile: path.basename(imagePath), outputFile: path.basename(filePath), durationMs: Date.now() - reqStart, responseSource: 'none', usage });
         continue;
       }
 
       console.log(`[retouch] Saved (${source}): ${filePath}`);
+      session.add({ inputFile: path.basename(imagePath), outputFile: path.basename(filePath), durationMs: Date.now() - reqStart, responseSource: source, usage });
 
       if (config.logging.saveMetadata) {
         saveMetadata(filePath, {
@@ -88,7 +96,7 @@ export async function runRetouch(config: AppConfig, client: OpenAI): Promise<voi
           params: { size: config.imageParams.size, n: config.imageParams.n },
           inputFile: path.basename(imagePath),
           responseSource: source,
-          usage: (response as Record<string, unknown>).usage ?? null,
+          usage,
           startedAt,
           savedAt: new Date().toISOString(),
           outputFile: path.basename(filePath),

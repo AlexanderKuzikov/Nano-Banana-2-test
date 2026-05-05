@@ -2,6 +2,10 @@ import { loadConfig } from './config';
 import { createClient } from './client';
 import { runGenerate } from './runner-generate';
 import { runRetouch } from './runner-retouch';
+import { Session } from './session';
+import { saveReport, printReport } from './report';
+import * as path from 'path';
+import { ensureDir } from './config';
 
 async function main() {
   let config;
@@ -13,21 +17,27 @@ async function main() {
   }
 
   const client = createClient(config);
+  const session = new Session();
 
   console.log(`\n=== Nano-Banana-2-test ===`);
   console.log(`mode: ${config.mode} | model: ${config.model}\n`);
 
   try {
     if (config.mode === 'generate') {
-      await runGenerate(config, client);
+      await runGenerate(config, client, session);
     } else if (config.mode === 'retouch') {
-      await runRetouch(config, client);
+      await runRetouch(config, client, session);
     }
-    console.log('\n[done]');
   } catch (err) {
     console.error('\n[fatal error]', (err as Error).message);
-    process.exit(1);
   }
+
+  const report = session.build(config.mode, config.model, config.baseURL);
+  const outputDir = path.join(process.cwd(), config.outputDir);
+  ensureDir(outputDir);
+  const reportPath = saveReport(report, outputDir);
+  printReport(report);
+  console.log(`report saved: ${reportPath}`);
 }
 
 main();

@@ -2,8 +2,9 @@ import * as path from 'path';
 import OpenAI from 'openai';
 import { AppConfig, loadPrompt, ensureDir } from './config';
 import { sanitizeModelName, timestamp, saveImageData, saveMetadata } from './utils';
+import { Session } from './session';
 
-export async function runGenerate(config: AppConfig, client: OpenAI): Promise<void> {
+export async function runGenerate(config: AppConfig, client: OpenAI, session: Session): Promise<void> {
   const prompt = loadPrompt(config);
   const outputDir = path.join(process.cwd(), config.outputDir);
   ensureDir(outputDir);
@@ -23,6 +24,7 @@ export async function runGenerate(config: AppConfig, client: OpenAI): Promise<vo
   console.log(`[generate] params:`, JSON.stringify({ size: params.size, n: params.n, quality: params.quality }));
 
   const startedAt = new Date().toISOString();
+  const reqStart = Date.now();
   let response: OpenAI.Images.ImagesResponse;
 
   try {
@@ -33,11 +35,13 @@ export async function runGenerate(config: AppConfig, client: OpenAI): Promise<vo
     const fs = await import('fs');
     fs.writeFileSync(errPath, JSON.stringify({ error: errorData, params, prompt }, null, 2));
     console.error('[generate] Request failed. Raw error saved to:', errPath);
+    session.add({ durationMs: Date.now() - reqStart, responseSource: 'error', error: (err as Error).message });
     throw err;
   }
 
   const modelTag = sanitizeModelName(model);
   const ts = timestamp();
+  const usage = (response as Record<string, unknown>).usage as Record<string, unknown> ?? null;
 
   if (!response.data || response.data.length === 0) {
     console.warn('[generate] Response contained no images. Raw response:');
@@ -45,6 +49,7 @@ export async function runGenerate(config: AppConfig, client: OpenAI): Promise<vo
     const rawPath = path.join(outputDir, `raw_response_generate_${ts}.json`);
     fs.writeFileSync(rawPath, JSON.stringify(response, null, 2));
     console.warn('Saved raw response to:', rawPath);
+    session.add({ durationMs: Date.now() - reqStart, responseSource: 'none', usage });
     return;
   }
 
@@ -59,10 +64,12 @@ export async function runGenerate(config: AppConfig, client: OpenAI): Promise<vo
       const rawPath = path.join(outputDir, `raw_img_${ts}_${i + 1}.json`);
       fs.writeFileSync(rawPath, JSON.stringify(img, null, 2));
       console.warn('Raw image item saved to:', rawPath);
+      session.add({ outputFile: path.basename(filePath), durationMs: Date.now() - reqStart, responseSource: 'none', usage });
       continue;
     }
 
     console.log(`[generate] Saved (${source}): ${filePath}`);
+    session.add({ outputFile: path.basename(filePath), durationMs: Date.now() - reqStart, responseSource: source, usage });
 
     if (config.logging.saveMetadata) {
       saveMetadata(filePath, {
@@ -71,7 +78,7 @@ export async function runGenerate(config: AppConfig, client: OpenAI): Promise<vo
         prompt,
         params: { size: params.size, n: params.n, quality: params.quality },
         responseSource: source,
-        usage: (response as Record<string, unknown>).usage ?? null,
+        usage,
         startedAt,
         savedAt: new Date().toISOString(),
         outputFile: path.basename(filePath),
