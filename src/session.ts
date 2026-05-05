@@ -13,7 +13,6 @@ export interface SessionReport {
   durationMs: number;
   mode: string;
   model: string;
-  baseURL: string;
   totalRequests: number;
   succeeded: number;
   failed: number;
@@ -33,12 +32,11 @@ export class Session {
     this.records.push(record);
   }
 
-  build(mode: string, model: string, baseURL: string): SessionReport {
+  build(mode: string, model: string): SessionReport {
     const finishedAt = new Date();
     const succeeded = this.records.filter(r => r.responseSource !== 'error' && r.responseSource !== 'none').length;
     const failed = this.records.length - succeeded;
 
-    // Sum numeric usage fields across all requests
     const totalUsage: Record<string, number> = {};
     for (const r of this.records) {
       if (r.usage && typeof r.usage === 'object') {
@@ -56,7 +54,6 @@ export class Session {
       durationMs: finishedAt.getTime() - this.startedAt.getTime(),
       mode,
       model,
-      baseURL,
       totalRequests: this.records.length,
       succeeded,
       failed,
