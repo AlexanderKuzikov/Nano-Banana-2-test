@@ -1,0 +1,39 @@
+{
+  "startedAt": "2026-05-05T12:32:49.475Z",
+  "finishedAt": "2026-05-05T12:33:13.025Z",
+  "durationMs": 23550,
+  "mode": "retouch",
+  "model": "google/gemini-3.1-flash-image-preview",
+  "baseURL": "https://routerai.ru/api/v1",
+  "totalRequests": 1,
+  "succeeded": 0,
+  "failed": 1,
+  "requests": [
+    {
+      "inputFile": "1-1-1024x768.jpg",
+      "durationMs": 23547,
+      "responseSource": "none",
+      "usage": {
+        "total_tokens": 1779,
+        "prompt_tokens": 298,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens": 1481,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 1120,
+          "audio_tokens": 0
+        }
+      }
+    }
+  ],
+  "totalUsage": {
+    "total_tokens": 1779,
+    "prompt_tokens": 298,
+    "completion_tokens": 1481
+  }
+}
