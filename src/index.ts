@@ -15,7 +15,7 @@ async function main() {
   const client = createClient(config);
 
   console.log(`\n=== Nano-Banana-2-test ===`);
-  console.log(`mode: ${config.mode} | provider: ${config.provider} | model: ${config.model}\n`);
+  console.log(`mode: ${config.mode} | model: ${config.model}\n`);
 
   try {
     if (config.mode === 'generate') {

@@ -83,7 +83,6 @@ export async function runRetouch(config: AppConfig, client: OpenAI): Promise<voi
       if (config.logging.saveMetadata) {
         saveMetadata(filePath, {
           mode: 'retouch',
-          provider: config.provider,
           model: config.model,
           prompt,
           params: { size: config.imageParams.size, n: config.imageParams.n },

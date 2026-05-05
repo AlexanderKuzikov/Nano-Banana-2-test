@@ -67,7 +67,6 @@ export async function runGenerate(config: AppConfig, client: OpenAI): Promise<vo
     if (config.logging.saveMetadata) {
       saveMetadata(filePath, {
         mode: 'generate',
-        provider: config.provider,
         model,
         prompt,
         params: { size: params.size, n: params.n, quality: params.quality },
