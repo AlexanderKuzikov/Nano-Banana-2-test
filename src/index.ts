@@ -23,6 +23,9 @@ async function main() {
   console.log(`\n=== Nano-Banana-2-test ===`);
   console.log(`mode: ${config.mode} | apiStyle: ${config.apiStyle} | model: ${config.model}\n`);
 
+  const logsDir = path.join(process.cwd(), config.logsDir);
+  ensureDir(logsDir);
+
   try {
     if (config.apiStyle === 'chat') {
       await runChat(config, client, session);
@@ -35,10 +38,8 @@ async function main() {
     console.error('\n[fatal error]', (err as Error).message);
   }
 
-  const report = session.build(config.mode, config.model, config.baseURL);
-  const outputDir = path.join(process.cwd(), config.outputDir);
-  ensureDir(outputDir);
-  const reportPath = saveReport(report, outputDir);
+  const report = session.build(config.mode, config.model);
+  const reportPath = saveReport(report, logsDir);
   printReport(report);
   console.log(`report saved: ${reportPath}`);
 }
