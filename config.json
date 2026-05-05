@@ -1,14 +1,8 @@
 {
-<<<<<<< HEAD
   "mode": "retouch",
-  "model": "google/gemini-3.1-flash-image-preview",
-  "promptFile": "prompts/retouch.txt",
-=======
-  "mode": "generate",
   "apiStyle": "chat",
   "model": "google/gemini-3.1-flash-image-preview",
-  "promptFile": "prompts/generate.txt",
->>>>>>> 85e9f47b69ec7cea4dbb6123007d026c8e99a3e7
+  "promptFile": "prompts/retouch.txt",
   "inputDir": "input",
   "outputDir": "output",
   "baseURL": "https://routerai.ru/api/v1",
