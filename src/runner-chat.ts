@@ -5,9 +5,7 @@ import { AppConfig, loadPrompt, ensureDir } from './config';
 import { sanitizeModelName, timestamp, saveMetadata, getImageFiles } from './utils';
 import { Session } from './session';
 
-// Extract image data from chat response content string.
 function extractFromString(content: string): { type: 'b64' | 'url' | 'none'; data: string } {
-  // Full data URL — extract base64 part
   const dataUrl = content.match(/data:image\/[^;]+;base64,([A-Za-z0-9+/=]+)/);
   if (dataUrl) return { type: 'b64', data: dataUrl[1] };
 
@@ -23,7 +21,6 @@ function extractFromString(content: string): { type: 'b64' | 'url' | 'none'; dat
   return { type: 'none', data: content };
 }
 
-// If string is a full data URL, extract base64 directly without regex (avoids truncation on large strings).
 function extractDataUrl(s: string): { type: 'b64' | 'url' | 'none'; data: string } {
   if (s.startsWith('data:image/')) {
     const comma = s.indexOf(',');
@@ -33,7 +30,6 @@ function extractDataUrl(s: string): { type: 'b64' | 'url' | 'none'; data: string
   return { type: 'none', data: s };
 }
 
-// Try to extract image from raw response object.
 function extractFromRaw(raw: unknown): { type: 'b64' | 'url' | 'none'; data: string } {
   const r = raw as Record<string, unknown>;
 
@@ -41,14 +37,12 @@ function extractFromRaw(raw: unknown): { type: 'b64' | 'url' | 'none'; data: str
   if (Array.isArray(choices) && choices.length > 0) {
     const message = choices[0]?.message as Record<string, unknown> | undefined;
 
-    // message.images[] — RouterAI format for Gemini image generation
     const msgImages = message?.images as Array<Record<string, unknown>> | undefined;
     if (Array.isArray(msgImages) && msgImages.length > 0) {
       const imgUrl = (msgImages[0]?.image_url as Record<string, unknown>)?.url as string | undefined;
       if (imgUrl) return extractDataUrl(imgUrl);
     }
 
-    // content as array of parts
     const contentParts = message?.content as Array<Record<string, unknown>> | undefined;
     if (Array.isArray(contentParts)) {
       for (const part of contentParts) {
@@ -66,14 +60,12 @@ function extractFromRaw(raw: unknown): { type: 'b64' | 'url' | 'none'; data: str
     }
   }
 
-  // top-level images[]
   const images = r?.images as Array<Record<string, unknown>> | undefined;
   if (Array.isArray(images) && images.length > 0) {
     const imgUrl = (images[0]?.image_url as Record<string, unknown>)?.url as string | undefined;
     if (imgUrl) return extractDataUrl(imgUrl);
   }
 
-  // data[] (images API style)
   const data = r?.data as Array<Record<string, unknown>> | undefined;
   if (Array.isArray(data) && data.length > 0) {
     const b64 = data[0]?.b64_json as string | undefined;
@@ -101,7 +93,9 @@ async function downloadUrl(url: string, dest: string): Promise<void> {
 export async function runChat(config: AppConfig, client: OpenAI, session: Session): Promise<void> {
   const prompt = loadPrompt(config);
   const outputDir = path.join(process.cwd(), config.outputDir);
+  const logsDir = path.join(process.cwd(), config.logsDir);
   ensureDir(outputDir);
+  ensureDir(logsDir);
 
   const modelTag = sanitizeModelName(config.model);
   const isRetouch = config.mode === 'retouch';
@@ -158,7 +152,7 @@ export async function runChat(config: AppConfig, client: OpenAI, session: Sessio
       });
     } catch (err: unknown) {
       const errorData = err instanceof Error ? { message: err.message, stack: err.stack } : err;
-      const errPath = path.join(outputDir, `error_${config.mode}_${inputName}_${ts}.json`);
+      const errPath = path.join(logsDir, `error_${config.mode}_${inputName}_${ts}.json`);
       fs.writeFileSync(errPath, JSON.stringify({ error: errorData, prompt, inputFile: job.inputFile }, null, 2));
       console.error(`[chat] Request failed. Error saved to: ${errPath}`);
       session.add({
@@ -172,7 +166,6 @@ export async function runChat(config: AppConfig, client: OpenAI, session: Sessio
 
     const usage = response.usage as unknown as Record<string, unknown> ?? null;
 
-    // Primary: standard content field (string)
     let extracted = { type: 'none' as 'b64' | 'url' | 'none', data: '' };
     const rawContent = (response.choices?.[0]?.message as unknown as Record<string, unknown>)?.content;
     if (typeof rawContent === 'string' && rawContent) {
@@ -180,16 +173,14 @@ export async function runChat(config: AppConfig, client: OpenAI, session: Sessio
       if (extracted.type === 'none') extracted = extractFromString(rawContent);
     }
 
-    // Fallback: raw response fields
     if (extracted.type === 'none') {
       extracted = extractFromRaw(response);
     }
 
     if (extracted.type === 'none') {
-      console.warn(`[chat] No image data found in response. Saving raw response for inspection.`);
-      const rawPath = path.join(outputDir, `raw_response_${config.mode}_${inputName}_${ts}.json`);
+      const rawPath = path.join(logsDir, `raw_response_${config.mode}_${inputName}_${ts}.json`);
       fs.writeFileSync(rawPath, JSON.stringify(response, null, 2));
-      console.warn('Saved to:', rawPath);
+      console.warn(`[chat] No image data found. Raw response saved to: ${rawPath}`);
       session.add({
         inputFile: job.inputFile ? path.basename(job.inputFile) : undefined,
         durationMs: Date.now() - reqStart,
