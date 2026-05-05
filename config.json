@@ -1,20 +1,14 @@
 {
   "mode": "generate",
-  "provider": "vsellm",
   "model": "google/gemini-3.1-flash-image-preview",
   "promptFile": "prompts/generate.txt",
   "inputDir": "input",
   "outputDir": "output",
+  "baseURL": "https://api.vsellm.ru/v1",
   "imageParams": {
     "size": "1024x1024",
     "n": 1,
     "quality": "low"
-  },
-  "providers": {
-    "vsellm": {
-      "baseURL": "https://api.vsellm.ru/v1",
-      "envKey": "VSELLM_API_KEY"
-    }
   },
   "logging": {
     "saveMetadata": true
