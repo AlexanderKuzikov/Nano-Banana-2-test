@@ -7,6 +7,7 @@ import { Session } from './session';
 
 // Extract image data from chat response content string.
 function extractFromString(content: string): { type: 'b64' | 'url' | 'none'; data: string } {
+  // Full data URL — extract base64 part
   const dataUrl = content.match(/data:image\/[^;]+;base64,([A-Za-z0-9+/=]+)/);
   if (dataUrl) return { type: 'b64', data: dataUrl[1] };
 
@@ -22,6 +23,16 @@ function extractFromString(content: string): { type: 'b64' | 'url' | 'none'; dat
   return { type: 'none', data: content };
 }
 
+// If string is a full data URL, extract base64 directly without regex (avoids truncation on large strings).
+function extractDataUrl(s: string): { type: 'b64' | 'url' | 'none'; data: string } {
+  if (s.startsWith('data:image/')) {
+    const comma = s.indexOf(',');
+    if (comma !== -1) return { type: 'b64', data: s.slice(comma + 1) };
+  }
+  if (s.startsWith('http')) return { type: 'url', data: s };
+  return { type: 'none', data: s };
+}
+
 // Try to extract image from raw response object.
 function extractFromRaw(raw: unknown): { type: 'b64' | 'url' | 'none'; data: string } {
   const r = raw as Record<string, unknown>;
@@ -30,11 +41,11 @@ function extractFromRaw(raw: unknown): { type: 'b64' | 'url' | 'none'; data: str
   if (Array.isArray(choices) && choices.length > 0) {
     const message = choices[0]?.message as Record<string, unknown> | undefined;
 
-    // message.images[] — RouterAI format for image generation
+    // message.images[] — RouterAI format for Gemini image generation
     const msgImages = message?.images as Array<Record<string, unknown>> | undefined;
     if (Array.isArray(msgImages) && msgImages.length > 0) {
       const imgUrl = (msgImages[0]?.image_url as Record<string, unknown>)?.url as string | undefined;
-      if (imgUrl) return extractFromString(imgUrl);
+      if (imgUrl) return extractDataUrl(imgUrl);
     }
 
     // content as array of parts
@@ -43,7 +54,7 @@ function extractFromRaw(raw: unknown): { type: 'b64' | 'url' | 'none'; data: str
       for (const part of contentParts) {
         if (part?.type === 'image_url') {
           const url = (part?.image_url as Record<string, unknown>)?.url as string | undefined;
-          if (url) return extractFromString(url);
+          if (url) return extractDataUrl(url);
         }
         if (part?.type === 'image') {
           const src = part?.source as Record<string, unknown> | undefined;
@@ -59,7 +70,7 @@ function extractFromRaw(raw: unknown): { type: 'b64' | 'url' | 'none'; data: str
   const images = r?.images as Array<Record<string, unknown>> | undefined;
   if (Array.isArray(images) && images.length > 0) {
     const imgUrl = (images[0]?.image_url as Record<string, unknown>)?.url as string | undefined;
-    if (imgUrl) return extractFromString(imgUrl);
+    if (imgUrl) return extractDataUrl(imgUrl);
   }
 
   // data[] (images API style)
@@ -141,10 +152,9 @@ export async function runChat(config: AppConfig, client: OpenAI, session: Sessio
 
     let response: OpenAI.Chat.ChatCompletion;
     try {
-      response = await (client.chat.completions.create as Function)({
+      response = await client.chat.completions.create({
         model: config.model,
         messages: job.messages,
-        modalities: ['image', 'text'],
       });
     } catch (err: unknown) {
       const errorData = err instanceof Error ? { message: err.message, stack: err.stack } : err;
@@ -166,7 +176,8 @@ export async function runChat(config: AppConfig, client: OpenAI, session: Sessio
     let extracted = { type: 'none' as 'b64' | 'url' | 'none', data: '' };
     const rawContent = (response.choices?.[0]?.message as unknown as Record<string, unknown>)?.content;
     if (typeof rawContent === 'string' && rawContent) {
-      extracted = extractFromString(rawContent);
+      extracted = extractDataUrl(rawContent);
+      if (extracted.type === 'none') extracted = extractFromString(rawContent);
     }
 
     // Fallback: raw response fields
