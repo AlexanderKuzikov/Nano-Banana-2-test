@@ -1,1 +1,1 @@
-Обработай изображение чтобы оно стало визуально приятнее. Убери грязь, ржавчину и потертости на технике. Сделай красивую реалистичную фотографию
+Enhance this construction site photo: fix exposure and white balance, lift shadows, increase contrast and clarity, make colors more vivid and natural. Keep all original objects and geometry unchanged. Output a visually improved version of the same image.

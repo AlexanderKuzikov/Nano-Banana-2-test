@@ -1,11 +1,11 @@
 {
   "mode": "retouch",
   "apiStyle": "chat",
-  "model": "google/gemini-3.1-flash-image-preview",
+  "model": "google/gemini-2.5-flash-image",
   "promptFile": "prompts/retouch.txt",
   "inputDir": "input",
   "outputDir": "output",
-  "baseURL": "https://routerai.ru/api/v1",
+  "baseURL": "https://api.vsellm.ru/v1",
   "imageParams": {
     "size": "1024x1024",
     "n": 1,
