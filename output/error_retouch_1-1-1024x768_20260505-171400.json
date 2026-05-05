@@ -1,8 +1,0 @@
-{
-  "error": {
-    "message": "405 \"405 Not Allowed\"",
-    "stack": "Error: 405 \"405 Not Allowed\"\n    at Function.generate (D:\\GitHub\\Nano-Banana-2-test\\node_modules\\openai\\src\\error.ts:103:12)\n    at OpenAI.makeStatusError (D:\\GitHub\\Nano-Banana-2-test\\node_modules\\openai\\src\\core.ts:462:21)\n    at OpenAI.makeRequest (D:\\GitHub\\Nano-Banana-2-test\\node_modules\\openai\\src\\core.ts:526:24)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async runRetouch (D:\\GitHub\\Nano-Banana-2-test\\src\\runner-retouch.ts:53:18)\n    at async main (D:\\GitHub\\Nano-Banana-2-test\\src\\index.ts:29:7)"
-  },
-  "inputFile": "D:\\GitHub\\Nano-Banana-2-test\\input\\1-1-1024x768.jpg",
-  "prompt": "Обработай изображение чтобы оно стало визуально приятнее. Убери грязь, ржавчину и потертости на технике. Сделай красивую реалистичную фотографию"
-}
