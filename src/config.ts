@@ -22,6 +22,7 @@ export interface AppConfig {
   promptFile: string;
   inputDir: string;
   outputDir: string;
+  logsDir: string;
   imageParams: ImageParams;
   logging: LoggingConfig;
 }
@@ -32,7 +33,8 @@ export function loadConfig(): AppConfig {
     throw new Error(`config.json not found at ${configPath}`);
   }
 
-  const config: AppConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  const config: AppConfig = { logsDir: 'logs', ...raw };
 
   if (!['generate', 'retouch'].includes(config.mode)) {
     throw new Error(`Invalid mode: "${config.mode}". Must be "generate" or "retouch"`);
