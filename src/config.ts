@@ -16,6 +16,7 @@ export interface LoggingConfig {
 
 export interface AppConfig {
   mode: 'generate' | 'retouch';
+  apiStyle: 'images' | 'chat';
   model: string;
   baseURL: string;
   promptFile: string;
@@ -35,6 +36,9 @@ export function loadConfig(): AppConfig {
 
   if (!['generate', 'retouch'].includes(config.mode)) {
     throw new Error(`Invalid mode: "${config.mode}". Must be "generate" or "retouch"`);
+  }
+  if (!['images', 'chat'].includes(config.apiStyle)) {
+    throw new Error(`Invalid apiStyle: "${config.apiStyle}". Must be "images" or "chat"`);
   }
   if (!config.model) throw new Error('model is required in config.json');
   if (!config.baseURL) throw new Error('baseURL is required in config.json');
