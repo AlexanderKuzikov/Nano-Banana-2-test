@@ -1,4 +1,5 @@
 import * as path from 'path';
+import * as fs from 'fs';
 import OpenAI from 'openai';
 import { AppConfig, loadPrompt, ensureDir } from './config';
 import { sanitizeModelName, timestamp, saveImageData, saveMetadata } from './utils';
@@ -7,7 +8,9 @@ import { Session } from './session';
 export async function runGenerate(config: AppConfig, client: OpenAI, session: Session): Promise<void> {
   const prompt = loadPrompt(config);
   const outputDir = path.join(process.cwd(), config.outputDir);
+  const logsDir = path.join(process.cwd(), config.logsDir);
   ensureDir(outputDir);
+  ensureDir(logsDir);
 
   const { model, imageParams } = config;
   const params: OpenAI.Images.ImageGenerateParams = {
@@ -31,10 +34,9 @@ export async function runGenerate(config: AppConfig, client: OpenAI, session: Se
     response = await client.images.generate(params);
   } catch (err: unknown) {
     const errorData = err instanceof Error ? { message: err.message, stack: err.stack } : err;
-    const errPath = path.join(outputDir, `error_generate_${timestamp()}.json`);
-    const fs = await import('fs');
+    const errPath = path.join(logsDir, `error_generate_${timestamp()}.json`);
     fs.writeFileSync(errPath, JSON.stringify({ error: errorData, params, prompt }, null, 2));
-    console.error('[generate] Request failed. Raw error saved to:', errPath);
+    console.error('[generate] Request failed. Error saved to:', errPath);
     session.add({ durationMs: Date.now() - reqStart, responseSource: 'error', error: (err as Error).message });
     throw err;
   }
@@ -44,11 +46,9 @@ export async function runGenerate(config: AppConfig, client: OpenAI, session: Se
   const usage = ((response as unknown) as Record<string, unknown>).usage as Record<string, unknown> ?? null;
 
   if (!response.data || response.data.length === 0) {
-    console.warn('[generate] Response contained no images. Raw response:');
-    const fs = await import('fs');
-    const rawPath = path.join(outputDir, `raw_response_generate_${ts}.json`);
+    const rawPath = path.join(logsDir, `raw_response_generate_${ts}.json`);
     fs.writeFileSync(rawPath, JSON.stringify(response, null, 2));
-    console.warn('Saved raw response to:', rawPath);
+    console.warn('[generate] Response contained no images. Raw saved to:', rawPath);
     session.add({ durationMs: Date.now() - reqStart, responseSource: 'none', usage });
     return;
   }
@@ -59,11 +59,9 @@ export async function runGenerate(config: AppConfig, client: OpenAI, session: Se
     const source = await saveImageData(img, filePath);
 
     if (source === 'none') {
-      console.warn(`[generate] Image ${i + 1}: no b64_json or url in response item:`, JSON.stringify(img));
-      const fs = await import('fs');
-      const rawPath = path.join(outputDir, `raw_img_${ts}_${i + 1}.json`);
+      const rawPath = path.join(logsDir, `raw_img_${ts}_${i + 1}.json`);
       fs.writeFileSync(rawPath, JSON.stringify(img, null, 2));
-      console.warn('Raw image item saved to:', rawPath);
+      console.warn(`[generate] Image ${i + 1}: no data. Raw item saved to:`, rawPath);
       session.add({ outputFile: path.basename(filePath), durationMs: Date.now() - reqStart, responseSource: 'none', usage });
       continue;
     }
