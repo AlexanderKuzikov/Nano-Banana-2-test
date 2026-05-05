@@ -3,8 +3,8 @@ import * as path from 'path';
 import { SessionReport } from './session';
 import { timestamp } from './utils';
 
-export function saveReport(report: SessionReport, outputDir: string): string {
-  const filePath = path.join(outputDir, `session_report_${timestamp()}.json`);
+export function saveReport(report: SessionReport, logsDir: string): string {
+  const filePath = path.join(logsDir, `session_report_${timestamp()}.json`);
   fs.writeFileSync(filePath, JSON.stringify(report, null, 2), 'utf-8');
   return filePath;
 }
